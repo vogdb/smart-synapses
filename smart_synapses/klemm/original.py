@@ -10,32 +10,7 @@ Some questions to the article:
 """
 import numpy as np
 
-from smart_synapses.utils import get_shape_size
-
-
-def winner_take_all(neurons, beta_noise):
-    """General purpose Winner Take All mechanism.
-
-    It will work with any shaped input.
-
-    Args:
-        neurons (numpy.ndarray): neurons input
-        beta_noise: beta noise according to the original article
-
-    Returns:
-        numpy.ndarray: array of the same shape as input where all elements are 0
-        except the winner one. It has 1 in its place.
-    """
-    shape = neurons.shape
-    neurons = np.clip(np.ravel(neurons), -40, 40)
-    divisor = np.sum(np.exp(beta_noise * neurons))
-    # p - probabilities
-    p = np.exp(beta_noise * neurons) / divisor
-    winner_flat_idx = np.random.choice(np.arange(len(p)), p=p)
-    winner_idx = np.unravel_index(winner_flat_idx, shape)
-    winner = np.zeros(shape, dtype=np.int)
-    winner[winner_idx] = 1
-    return winner
+from smart_synapses.utils import get_shape_size, winner_take_all_prob
 
 
 class Layer:
@@ -60,7 +35,7 @@ class Layer:
 
     def train(self, input_sample, reward, delta_penalty, beta_noise):
         output_sample = self.input_weights.dot(input_sample)
-        output_winner = winner_take_all(output_sample, beta_noise)
+        output_winner = winner_take_all_prob(beta_noise * output_sample)
 
         input_active_indices = np.nonzero(input_sample)[0]
         output_active_indices = np.nonzero(output_winner)[0]
@@ -113,7 +88,7 @@ class Network:
         error_hist = []
         for epoch in range(epochs):
             for (x, y) in zip(self.x_train, self.y_train):
-                y_pred = winner_take_all(self.predict(x), self.beta_noise)
+                y_pred = winner_take_all_prob(self.beta_noise * self.predict(x))
                 reward = 1 if np.array_equal(y, y_pred) else -1
                 x_l = x
                 for layer in self.layers:
